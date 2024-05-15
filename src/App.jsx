@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import "./App.scss";
 import { get10value } from "./helpers/get10value";
 import { ResultGroup } from './components/ResultGroup';
+import { ControlsGroup } from "./components/ControlsGroup";
 
 export default function App() {
   const [Alist, setAlist] = useState(Array(16).fill(0));
   const [Blist, setBlist] = useState(Array(16).fill(0));
   const [a, setA] = useState(1);
   const [counters, setCounters] = useState([0, 0, 0, 0]);
+  const [isAuto, setIsAuto] = useState(false);
 
   const [AResList, setAResList] = useState(Array(32).fill(0));
   const [BResList, setBResList] = useState(Array(16).fill(0));
@@ -39,29 +41,29 @@ export default function App() {
       return !Blist.includes(1);
     }
     const x4 = () => {
-      return Alist[Alist.length - 1 - 15] === 1;
+      return Alist[Alist.length - 1 - 15] == 1;
     }
     const x5 = () => {
-      return BResList[BResList.length - 1] === 1;
+      return BResList[BResList.length - 1] == 1;
     }
     const x6 = () => {
-      const b0 = BResList[BResList.length - 1] === 1; // B(0)
-      const b1 = BResList[BResList.length - 1 - 1] === 1; // B(1)
+      const b0 = BResList[BResList.length - 1] == 1; // B(0)
+      const b1 = BResList[BResList.length - 1 - 1] == 1; // B(1)
 
-      const result = b0 !== b1;
+      const result = b0 != b1;
       return result;
     }
     const x7 = () => {
-      return BResList[BResList.length - 1 - 1] === 1;
+      return BResList[BResList.length - 1 - 1] == 1;
     }
     const x8 = () => {
-      return !counters.includes(1);
+      return !counters.includes('1');
     }
     const x9 = () => {
-      return CResList[CResList.length - 31 - 1] === 1;
+      return CResList[CResList.length - 31 - 1] == 1;
     }
     const x10 = () => {
-      return CResList[CResList.length - 14 - 1] === 1;
+      return CResList[CResList.length - 14 - 1] == 1;
     }
 		const y0 = () => {
 
@@ -95,10 +97,9 @@ export default function App() {
     }
 
     const y6 = () => {
-			debugger
       let Am = parseInt(AResList.join(""), 2); // Convert AResList to an integer
       let invertedAm = ~Am;
-      let mask = 0x3FFFE000; // 00011111111111111111111100000000 in binary
+      let mask = 0x3FFFC000; // 00011111111111111111111100000000 in binary
 
       let invertedUpper15BitsAm = invertedAm & mask;
     	Am = Am & 0x7FFF; // 00000000000000001111111111111111 in binary
@@ -116,7 +117,7 @@ export default function App() {
     }
     const y8 = () => {
       // AM:=L1(AM.0)
-      let shiftedAm = (parseInt(AResList.join(""), 2) << 1) >>> 0;
+      let shiftedAm = (parseInt(AResList.join(""), 2) << 1);
       setAResList((shiftedAm >>> 0).toString(2).padStart(32, '0').split(''));
     }
     const y9 = () => {
@@ -134,15 +135,17 @@ export default function App() {
     }
     const y12 = () => {
       // C(29:0)=C̅(29:0) + 1
-      let complementedLower30Bits = ~parseInt(CResList.join(""), 2) & 0x3fffffff;
-      let result = complementedLower30Bits + 1;
-      let C = (parseInt(CResList.join(""), 2) & 0xc0000000) | result;
-      setCResList(updateListFromBinaryValue(C, CResList));
+			let C = parseInt(CResList.join(""), 2); // Convert AResList to an integer
+      let invertedAm = ~C;
+      let mask = 0x3fffffff; // 00011111111111111111111100000000 in binary
 
+      let invertedUpper15BitsAm = invertedAm & mask;
+
+      setCResList(updateListFromBinaryValue(((invertedUpper15BitsAm + 1) >>> 0), CResList));
     }
     const y13 = () => {
-      // C(30:16) = C̅(29:15) + 1
-      let invertedLower15BitsC = ~parseInt(CResList.join(""), 2) & 0xffff8000;
+      // C(30:16) = C(29:15) + 1
+      let invertedLower15BitsC = parseInt(CResList.join(""), 2) & 0xffff8000;
       let incrementedValue = invertedLower15BitsC + 1;
       let C =
         (parseInt(CResList.join(""), 2) & 0x00007fff) |
@@ -157,7 +160,7 @@ export default function App() {
       setCResList(updateListFromBinaryValue(C, CResList));
     }
 
-  function runMP() {
+  function nextStep() {
     switch (a) {
       case 1:
         if (x1()) {
@@ -177,7 +180,6 @@ export default function App() {
               Am = y3();
               Am = y4(Am);
               Am = y5(Am);
-							debugger
 							setCResList(C)
 							setCounters(cnt)
 							setAResList(Am)
@@ -260,7 +262,7 @@ export default function App() {
 
       case 8:
         y0();
-        setA(1);
+				setIsAuto(false)
         alert("success");
         break;
 
@@ -269,104 +271,66 @@ export default function App() {
     }
   }
 
+	useEffect(() => {
+		if(a !== 8 && isAuto){
+			nextStep()
+		}
+	}, [a, isAuto])
+
+	function clear() {
+		setAResList((0x0000 >>> 0).toString(2).padStart(32, '0').split(''))
+		setBResList((0x0000 >>> 0).toString(2).padStart(16, '0').split(''))
+		setCResList((0x0000 >>> 0).toString(2).padStart(32, '0').split(''))
+		setCounters((0x0 >>> 0).toString(2).padStart(4, '0').split(''))
+		setAlist((0x0000 >>> 0).toString(2).padStart(16, '0').split(''))
+		setBlist((0x0000 >>> 0).toString(2).padStart(16, '0').split(''))
+		setA(1)
+		setIsAuto(false)
+	}
+
   return (
     <div className="wrapper">
       <div className="schemeWrapper">
-        <img src="/images/22.jpg" alt="" />
+				<div className="imgWrapper">
+					<img src="/images/22.jpg" alt="" />
+					<input type="checkbox" name="step" id="step1" checked={a === 1}/>
+					<input type="checkbox" name="step" id="step2" checked={a === 2}/>
+					<input type="checkbox" name="step" id="step3" checked={a === 3}/>
+					<input type="checkbox" name="step" id="step4" checked={a === 4}/>
+					<input type="checkbox" name="step" id="step5" checked={a === 5}/>
+					<input type="checkbox" name="step" id="step6" checked={a === 6}/>
+					<input type="checkbox" name="step" id="step7" checked={a === 7}/>
+					<input type="checkbox" name="step" id="step8" checked={a === 8}/>
+				</div>
       </div>
       <div className="infoWrapper">
-        <div className="baseInfo">
-          <div className="infoTitle">Исходные данные</div>
-          <div className="baseFlex">
-            <div className="baseTitle">A</div>
-            <table>
-              <tr>
-                {Alist.map((el, index) => {
-                  return (
-                    <td>
-                      <span>{Alist.length - index - 1}</span>
-                    </td>
-                  );
-                })}
-              </tr>
-              <tr>
-                {Alist.map((el, index) => {
-                  const isActive = Alist[index] === 1;
-
-                  return (
-                    <td>
-                      <button
-                        className={isActive ? "active" : ""}
-                        onClick={() => {
-                          setAlist((prev) => {
-                            let newArr = [...prev];
-                            newArr[index] = isActive ? 0 : 1;
-                            return newArr;
-                          });
-                        }}
-                      >
-                        {el}
-                      </button>
-                    </td>
-                  );
-                })}
-              </tr>
-            </table>
-          </div>
-          {get10value(Alist)}
-          <div className="baseFlex">
-            <div className="baseTitle">B</div>
-            <table>
-              <tr>
-                {Blist.map((el, index) => {
-                  return (
-                    <td>
-                      <span>{Blist.length - index - 1}</span>
-                    </td>
-                  );
-                })}
-              </tr>
-              <tr>
-                {Blist.map((el, index) => {
-                  const isActive = Blist[index] === 1;
-
-                  return (
-                    <td>
-                      <button
-                        className={isActive ? "active" : ""}
-                        onClick={() => {
-                          setBlist((prev) => {
-                            let newArr = [...prev];
-                            newArr[index] = isActive ? 0 : 1;
-                            return newArr;
-                          });
-                        }}
-                      >
-                        {el}
-                      </button>
-                    </td>
-                  );
-                })}
-              </tr>
-            </table>
-          </div>
-          {get10value(Blist)}
-        </div>
+				<div className="controlsWrapper">
+					<div className="baseInfo">
+						<div className="infoTitle">Исходные данные</div>
+						<ControlsGroup step={a} title={'A'} data={Alist} onChange={setAlist}/>
+						<ControlsGroup step={a} title={'B'} data={Blist} onChange={setBlist}/>
+					</div>
+					<div className="btns">
+						Команда: {a}
+						<button onClick={nextStep} disabled={a !== 1}>Старт</button>
+						<button onClick={nextStep} disabled={a === 8}>
+							Такт
+						</button>
+						<button onClick={() => setIsAuto(true)} disabled={a === 8 || isAuto}>Авто</button>
+						<button onClick={clear} disabled={a === 1}>Сброс</button>
+						{a === 8 && 
+						<>
+							результат: {get10value(CResList)}
+						</>
+						}
+					</div>
+				</div>
         <div className="resInfo">
           <div className="infoTitle">Результаты вычислений</div>
           <ResultGroup data={AResList} title={'A'}/>
           <ResultGroup data={BResList} title={'B'}/>
           <ResultGroup data={CResList} title={'C'}/>
           <ResultGroup data={counters} title={'СЧ'}/>
-        </div>
-        <div className="btns">
-          Команда: {a - 1}
-          <button onClick={() => runMP()}>Старт</button>
-          <button>
-            Такт
-          </button>
-          <button>Авто</button>
-          <button>Сброс</button>
         </div>
       </div>
     </div>
