@@ -24,7 +24,7 @@ export const ControlsGroup = ({data, onChange, title, step}) => {
 								return (
 									<td key={'button-' + title + '_' + index}>
 										<button
-											disabled={step != 1}
+											disabled={step != 0}
 											className={isActive ? "active" : ""}
 											onClick={() => {
 												onChange((prev) => {
